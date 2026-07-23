@@ -1,23 +1,25 @@
 import streamlit as st
-import spacy
 import pandas as pd
-import subprocess
-import sys
+from transformers import pipeline
 
-st.set_page_config(page_title="NER", page_icon="🧠")
+st.set_page_config(
+    page_title="Named Entity Recognition (NER)",
+    page_icon="🧠",
+    layout="wide"
+)
+
+st.title("🧠 Named Entity Recognition (NER)")
+st.write("Detect Persons, Organizations, Locations and Miscellaneous entities.")
 
 @st.cache_resource
 def load_model():
-    try:
-        return spacy.load("en_core_web_sm")
-    except OSError:
-        subprocess.run(
-            [sys.executable, "-m", "spacy", "download", "en_core_web_sm"],
-            check=True
-        )
-        return spacy.load("en_core_web_sm")
+    return pipeline(
+        "ner",
+        model="dslim/bert-base-NER",
+        aggregation_strategy="simple"
+    )
 
-nlp = load_model()
+ner = load_model()
 
 text = st.text_area(
     "Enter Text",
@@ -41,48 +43,50 @@ if st.button("Detect Entities"):
 
             data = []
 
-            for r in results:
+            for entity in results:
                 data.append({
-                    "Entity": r["word"],
-                    "Label": r["entity_group"],
-                    "Confidence": round(r["score"], 3)
+                    "Entity": entity["word"],
+                    "Entity Type": entity["entity_group"],
+                    "Confidence": round(entity["score"], 3)
                 })
 
             df = pd.DataFrame(data)
 
             st.subheader("Detected Entities")
-
             st.dataframe(df, use_container_width=True)
 
             st.subheader("Highlighted Text")
 
-            html = text
+            highlighted = text
 
             colors = {
-                "PER":"#FFD54F",
-                "ORG":"#81C784",
-                "LOC":"#64B5F6",
-                "MISC":"#CE93D8"
+                "PER": "#FFEB3B",
+                "ORG": "#81C784",
+                "LOC": "#64B5F6",
+                "MISC": "#CE93D8"
             }
 
-            for r in sorted(results, key=lambda x: x["start"], reverse=True):
+            for entity in sorted(results, key=lambda x: x["start"], reverse=True):
 
-                color = colors.get(r["entity_group"], "#B0BEC5")
+                start = entity["start"]
+                end = entity["end"]
 
-                entity = text[r["start"]:r["end"]]
+                word = text[start:end]
+
+                color = colors.get(entity["entity_group"], "#E0E0E0")
 
                 tag = f"""
 <span style="
-background:{color};
-padding:3px;
-border-radius:5px;
+background-color:{color};
+padding:4px;
+border-radius:4px;
 font-weight:bold;
 ">
-{entity}
-({r["entity_group"]})
+{word}
+({entity['entity_group']})
 </span>
 """
 
-                html = html[:r["start"]] + tag + html[r["end"]:]
+                highlighted = highlighted[:start] + tag + highlighted[end:]
 
-            st.markdown(html, unsafe_allow_html=True)
+            st.markdown(highlighted, unsafe_allow_html=True)
