@@ -1,26 +1,23 @@
 import streamlit as st
+import spacy
 import pandas as pd
-from transformers import pipeline
+import subprocess
+import sys
 
-st.set_page_config(
-    page_title="Named Entity Recognition (NER)",
-    page_icon="🧠",
-    layout="wide"
-)
+st.set_page_config(page_title="NER", page_icon="🧠")
 
-st.title("🧠 Named Entity Recognition (NER)")
-st.write("Detect Persons, Organizations, Locations, Dates and more.")
-
-# Load Hugging Face NER model
 @st.cache_resource
 def load_model():
-    return pipeline(
-        "ner",
-        model="dslim/bert-base-NER",
-        aggregation_strategy="simple"
-    )
+    try:
+        return spacy.load("en_core_web_sm")
+    except OSError:
+        subprocess.run(
+            [sys.executable, "-m", "spacy", "download", "en_core_web_sm"],
+            check=True
+        )
+        return spacy.load("en_core_web_sm")
 
-ner = load_model()
+nlp = load_model()
 
 text = st.text_area(
     "Enter Text",
